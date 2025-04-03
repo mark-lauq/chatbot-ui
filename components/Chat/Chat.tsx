@@ -63,6 +63,8 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showScrollDownButton, setShowScrollDownButton] =
     useState<boolean>(false);
+  const [ttft, setTtft] = useState<number>();
+  const [tps, setTps] = useState<number>();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -116,6 +118,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           });
         }
         const controller = new AbortController();
+        const requestStartMS = new Date().getTime();
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
@@ -152,6 +155,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           let done = false;
           let isFirst = true;
           let text = '';
+          let outputTokenCount = 0;
           while (!done) {
             if (stopConversationRef.current === true) {
               controller.abort();
@@ -162,7 +166,10 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
             done = doneReading;
             const chunkValue = decoder.decode(value);
             text += chunkValue;
+            outputTokenCount++;
             if (isFirst) {
+              const ttftDiffMS = new Date().getTime() - requestStartMS;
+              setTtft(parseFloat((ttftDiffMS / 1000).toFixed(1)));
               isFirst = false;
               const updatedMessages: Message[] = [
                 ...updatedConversation.messages,
@@ -197,6 +204,8 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
               });
             }
           }
+          const totalTurnaroundSeconds = parseFloat(((new Date().getTime() - requestStartMS) / 1000).toFixed(1));
+          setTps(parseInt((outputTokenCount / totalTurnaroundSeconds).toFixed()));
           saveConversation(updatedConversation);
           const updatedConversations: Conversation[] = conversations.map(
             (conversation) => {
@@ -322,6 +331,13 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
         selectedConversation.messages[selectedConversation.messages.length - 2],
       );
   }, [selectedConversation, throttledScrollDown]);
+
+  useEffect(() => {
+    if (!selectedConversation?.messages?.length) {
+      setTtft(undefined);
+      setTps(undefined);
+    }
+  }, [selectedConversation]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -488,21 +504,27 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
               </>
             )}
           </div>
-
           <ChatInput
             stopConversationRef={stopConversationRef}
             textareaRef={textareaRef}
             onSend={(message, plugin) => {
               setCurrentMessage(message);
               handleSend(message, 0, plugin);
+              setTtft(undefined);
+              setTps(undefined);
             }}
             onScrollDownClick={handleScrollDown}
             onRegenerate={() => {
               if (currentMessage) {
                 handleSend(currentMessage, 2, null);
               }
+
+              setTtft(undefined);
+              setTps(undefined);
             }}
             showScrollDownButton={showScrollDownButton}
+            ttft={ttft}
+            tps={tps}
           />
         </>
       )}
