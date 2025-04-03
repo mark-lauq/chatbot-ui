@@ -32,6 +32,7 @@ import { ErrorMessageDiv } from './ErrorMessageDiv';
 import { ModelSelect } from './ModelSelect';
 import { SystemPrompt } from './SystemPrompt';
 import { TemperatureSlider } from './Temperature';
+import { MaxTokensSlider } from './MaxTokensSlider';
 import { MemoizedChatMessage } from './MemoizedChatMessage';
 
 interface Props {
@@ -432,6 +433,16 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
                             value: temperature,
                           })
                         }
+                      />
+
+                      <MaxTokensSlider
+                        label={t('Max Tokens')}
+                        onChange={(maxTokens) => {
+                          handleUpdateConversation(selectedConversation, {
+                            key: 'max_tokens',
+                            value: maxTokens,
+                          })
+                        }}
                       />
                     </div>
                   )}
